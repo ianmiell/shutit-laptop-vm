@@ -116,6 +116,10 @@ IF_NOT RUN which gtop
 	RUN npm install -g gtop >/dev/null 2>&1
 ENDIF
 
-RUN dpkg -i https://setns.run/install-inspect-deb
+IF_NOT RUN dpkg -l | grep sysdig-inspect
+	INSTALL libgconf2-4
+	RUN wget https://setns.run/install-inspect-deb
+	RUN dpkg -i install-inspect-deb
+ENDIF
 
 RUN echo Now ssh-copy-id around, git clone ssh://imiell@meirionconsulting.com:/var/cache/git/work.git and re-boot
