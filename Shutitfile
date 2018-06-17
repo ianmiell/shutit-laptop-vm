@@ -1,0 +1,114 @@
+# We assert here that we are running as root
+SEND whoami
+ASSERT_OUTPUT root
+
+LOG DEBUG
+
+# Check this is Ubuntu
+SEND lsb_release -d -s | awk '{print $1}'
+ASSERT_OUTPUT Ubuntu
+
+# We assert here the user imiell was set up by the OS installation process
+SEND cut -d: -f1 /etc/passwd | grep imiell | wc -l
+ASSERT_OUTPUT 1
+
+# Generate an ssh key
+IF_NOT FILE_EXISTS /home/imiell/.ssh/id_rsa.pub
+	RUN ssh-keygen
+	# Note that the response to 'already exists' below prevents overwrite here.
+	EXPECT_MULTI ['file in which=','empty for no passphrase=','Enter same passphrase again=','already exists=n']
+ENDIF
+
+INSTALL ubuntu-desktop
+INSTALL html2text
+INSTALL software-properties-common
+INSTALL curl
+INSTALL apt-transport-https
+# ncurses disk usage analyser
+INSTALL ncdu
+# Text-only browser
+INSTALL links
+# Tasksel - see notes/ubuntu
+INSTALL tasksel
+INSTALL ntp
+RUN timedatectl set-ntp on
+
+INSTALL sysdig
+RUN curl -s https://s3.amazonaws.com/download.draios.com/DRAIOS-GPG-KEY.public | apt-key add -
+RUN curl -s -o /etc/apt/sources.list.d/draios.list https://s3.amazonaws.com/download.draios.com/stable/deb/draios.list
+RUN apt-get update -y
+INSTALL falco
+
+# Google Chrome
+IF_NOT RUN google-chrome --version
+	RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+	RUN echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | tee /etc/apt/sources.list.d/google-chrome.list
+	RUN apt update -y >/dev/null 2>&1
+	INSTALL google-chrome-stable
+ENDIF
+RUN apt-file update >/dev/null 2>&1
+RUN apt-get autoremove -y >/dev/null 2>&1
+
+# pip upgrade
+IF_NOT RUN pip list | grep requests
+	RUN pip install requests
+ENDIF
+IF_NOT RUN pip list | grep coverage
+	RUN pip install coverage
+ENDIF
+IF_NOT RUN pip list | grep python-twitter
+	RUN pip install python-twitter
+ENDIF
+IF_NOT RUN pip list | grep setuptools
+	RUN pip install setuptools
+ENDIF
+IF_NOT RUN pip list | grep twine
+	RUN pip install twine
+ENDIF
+IF_NOT RUN pip list | grep butterfly
+	RUN pip install butterfly
+ENDIF
+IF_NOT RUN pip list | grep shutit
+	RUN pip install shutit
+ENDIF
+
+# Install docker
+IF_NOT RUN docker version
+	INSTALL docker.io
+	# Add imiell to the docker user group
+	RUN usermod -G docker -a imiell
+	RUN usermod -G staff -a imiell
+ENDIF
+
+
+# Terraform
+IF_NOT RUN terraform version  | awk '{print $NF}' | head -1 | grep v0.11.3
+	RUN wget https://releases.hashicorp.com/terraform/0.11.3/terraform_0.11.3_linux_amd64.zip
+	RUN unzip terraform_0.11.3_linux_amd64.zip
+	RUN mv terraform /usr/local/bin
+	RUN rm -f terraform*
+ENDIF
+
+
+################################################################################
+# Log me in as imiell
+USER imiell
+# If it's not been done before, check out my dotfiles and set it up
+IF_NOT FILE_EXISTS /home/imiell/.dotfiles
+	RUN cd /home/imiell
+	RUN git clone --depth=1 https://github.com/ianmiell/dotfiles ~imiell/.dotfiles
+	RUN cd .dotfiles
+	RUN ./script/bootstrap
+	EXPECT_MULTI ['What is your github author name=Ian Miell','What is your github author email=ian.miell@gmail.com','verwrite all=O']
+ENDIF
+
+# ensure vim is the default for root
+RUN echo 3 | update-alternatives --config editor
+RUN chown -R imiell: /space
+################################################################################
+
+IF_NOT RUN which gtop
+	RUN npm install -g gtop >/dev/null 2>&1
+ENDIF
+
+RUN echo Now ssh-copy-id around, git clone ssh://imiell@meirionconsulting.com:/var/cache/git/work.git and re-run
