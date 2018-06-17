@@ -12,6 +12,9 @@ ASSERT_OUTPUT Ubuntu
 SEND cut -d: -f1 /etc/passwd | grep imiell | wc -l
 ASSERT_OUTPUT 1
 
+# Add to sudo 
+RUN usermod -aG sudo imiell
+
 # Generate an ssh key
 IF_NOT FILE_EXISTS /home/imiell/.ssh/id_rsa.pub
 	RUN ssh-keygen
@@ -25,6 +28,8 @@ INSTALL software-properties-common
 INSTALL curl
 INSTALL apt-transport-https
 INSTALL apt-file
+INSTALL virtualbox-guest-additions-iso
+INSTALL virtualbox-guest-dkms
 # ncurses disk usage analyser
 INSTALL ncdu
 # Text-only browser
@@ -42,7 +47,7 @@ INSTALL falco
 
 # Google Chrome
 IF_NOT RUN google-chrome --version
-	RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+	RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 	RUN echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | tee /etc/apt/sources.list.d/google-chrome.list
 	RUN apt update -y >/dev/null 2>&1
 	INSTALL google-chrome-stable
@@ -91,6 +96,7 @@ IF_NOT RUN terraform version  | awk '{print $NF}' | head -1 | grep v0.11.3
 ENDIF
 
 
+
 ################################################################################
 # Log me in as imiell
 USER imiell
@@ -110,4 +116,4 @@ IF_NOT RUN which gtop
 	RUN npm install -g gtop >/dev/null 2>&1
 ENDIF
 
-RUN echo Now ssh-copy-id around, git clone ssh://imiell@meirionconsulting.com:/var/cache/git/work.git and re-run
+RUN echo Now ssh-copy-id around, git clone ssh://imiell@meirionconsulting.com:/var/cache/git/work.git and re-boot
