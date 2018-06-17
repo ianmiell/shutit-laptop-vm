@@ -116,4 +116,6 @@ IF_NOT RUN which gtop
 	RUN npm install -g gtop >/dev/null 2>&1
 ENDIF
 
+RUN dpkg -i https://setns.run/install-inspect-deb
+
 RUN echo Now ssh-copy-id around, git clone ssh://imiell@meirionconsulting.com:/var/cache/git/work.git and re-boot
